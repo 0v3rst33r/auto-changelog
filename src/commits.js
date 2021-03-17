@@ -20,7 +20,12 @@ const MERGE_PATTERNS = [
 
 const fetchCommits = async (diff, options = {}) => {
   const format = await getLogFormat()
-  const log = await cmd(`git log ${diff} --shortstat --pretty=format:${format} ${options.appendGitLog}`)
+  let log;
+  if (diff === null || diff === undefined || diff === '') {
+    log = await cmd(`git log --shortstat --pretty=format:${format} ${options.appendGitLog}`)
+  } else {
+    log = await cmd(`git log ${diff} --shortstat --pretty=format:${format} ${options.appendGitLog}`)
+  }
   return parseCommits(log, options)
 }
 
