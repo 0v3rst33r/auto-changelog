@@ -32,7 +32,10 @@ const parseReleases = async (tags, options, onParsed) => {
 const filterCommits = ({ ignoreCommitPattern }, merges) => commit => {
   if (commit.fixes || commit.merge) {
     // Filter out commits that already appear in fix or merge lists
-    return false
+    if (commit.subject.startsWith('Merged in ')) {
+      return false
+    }
+    return true // Disable this check
   }
   if (commit.breaking) {
     return true
