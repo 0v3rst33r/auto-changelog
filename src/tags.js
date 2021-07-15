@@ -6,33 +6,32 @@ const MATCH_V = /^v\d/
 
 const fetchTags = async (options, remote) => {
   const format = `%(refname:short)${DIVIDER}%(creatordate:short)`
-  const tags = (await cmd(`git tag -l --sort=-creatordate --format=${format}`))
+  const tags = (await cmd(`git tag -l --format=${format} ${options.appendGitTag}`))
     .trim()
     .split('\n')
     .map(parseTag(options))
     .filter(isValidTag(options))
-    .sort(sortTags(options))
+    .sort(sortTags)
 
   const { latestVersion, unreleased, unreleasedOnly, getCompareLink } = options
   if (latestVersion || unreleased || unreleasedOnly) {
-    const v = !MATCH_V.test(latestVersion) && tags.some(({ version }) => MATCH_V.test(version)) ? 'v' : ''
     const previous = tags[0]
+    const v = !MATCH_V.test(latestVersion) && previous && MATCH_V.test(previous.version) ? 'v' : ''
     const compareTo = latestVersion ? `${v}${latestVersion}` : 'HEAD'
     tags.unshift({
       tag: null,
       title: latestVersion ? `${v}${latestVersion}` : 'Unreleased',
       date: new Date().toISOString(),
-      diff: previous ? `${previous.tag}..` : '',
+      diff: previous ? `${previous.tag}..` : 'HEAD',
       href: previous ? getCompareLink(previous.tag, compareTo) : null
     })
   }
 
-  return tags
-    .map(enrichTag(options))
-    .slice(0, getLimit(tags, options))
+  const enriched = tags.map(enrichTag(options))
+  return enriched.slice(0, getLimit(enriched, options))
 }
 
-const getLimit = (tags, { unreleasedOnly, startingVersion }) => {
+const getLimit = (tags, { unreleasedOnly, startingVersion, startingDate }) => {
   if (unreleasedOnly) {
     return 1
   }
@@ -41,6 +40,9 @@ const getLimit = (tags, { unreleasedOnly, startingVersion }) => {
     if (index !== -1) {
       return index + 1
     }
+  }
+  if (startingDate) {
+    return tags.filter(t => t.isoDate >= startingDate).length
   }
   return tags.length
 }
@@ -68,6 +70,12 @@ const enrichTag = ({ getCompareLink, tagPattern }) => (t, index, tags) => {
       semver.valid(previous.version) &&
       semver.diff(t.version, previous.version) === 'major'
     ),
+    minor: Boolean(
+      previous &&
+      semver.valid(t.version) &&
+      semver.valid(previous.version) &&
+      ['minor', 'preminor'].includes(semver.diff(t.version, previous.version))
+    ),
     ...t
   }
 }
@@ -79,7 +87,7 @@ const isValidTag = ({ tagPattern }) => ({ tag, version }) => {
   return semver.valid(version)
 }
 
-const sortTags = ({ tagPrefix }) => ({ version: a }, { version: b }) => {
+const sortTags = ({ version: a }, { version: b }) => {
   if (semver.valid(a) && semver.valid(b)) {
     return semver.rcompare(a, b)
   }
