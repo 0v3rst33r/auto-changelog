@@ -11,8 +11,10 @@ When no tags are present yet, all the commits will be used in the initial versio
 ### Installation
 
 ```bash
-npm install -g auto-changelog
+npm i @inrange/auto-changelog
 ```
+
+You can install it globally as well with the `-g` flag.  When used in projects the local scope as indicated in above command is best.
 
 ### Usage
 
